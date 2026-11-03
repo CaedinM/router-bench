@@ -1,0 +1,3 @@
+-r ../../phoenix/requirements.txt
+anthropic==1.17.0
+pydantic==2.14.1

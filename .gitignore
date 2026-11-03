@@ -1,0 +1,15 @@
+.venv
+
+.env
+
+__pycache__/
+inference/*.sqlite3
+inference/*.sqlite3-*
+
+
+# Local Phoenix database and runtime state
+phoenix/storage/
+
+# Routing experiment decision logs
+routing/results/
+routing/llm_routing/results/

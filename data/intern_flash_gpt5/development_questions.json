@@ -1,0 +1,156 @@
+{
+  "description": "Fixed development memberships from the original score-stratified split; preserved without selecting on active-pool outcomes.",
+  "source_sha256": "02879cf269c8acbe79dc2af190be1752c765e2f97db6e7d300c2f3bf5b6e7786",
+  "questions": [
+    {
+      "dataset_id": "aime",
+      "split": "hybrid",
+      "record_index": 10
+    },
+    {
+      "dataset_id": "aime",
+      "split": "hybrid",
+      "record_index": 12
+    },
+    {
+      "dataset_id": "aime",
+      "split": "hybrid",
+      "record_index": 60
+    },
+    {
+      "dataset_id": "arenahard",
+      "split": "test",
+      "record_index": 31
+    },
+    {
+      "dataset_id": "arenahard",
+      "split": "test",
+      "record_index": 227
+    },
+    {
+      "dataset_id": "arenahard",
+      "split": "test",
+      "record_index": 459
+    },
+    {
+      "dataset_id": "gpqa",
+      "split": "test",
+      "record_index": 24
+    },
+    {
+      "dataset_id": "gpqa",
+      "split": "test",
+      "record_index": 31
+    },
+    {
+      "dataset_id": "gpqa",
+      "split": "test",
+      "record_index": 189
+    },
+    {
+      "dataset_id": "hle",
+      "split": "test",
+      "record_index": 239
+    },
+    {
+      "dataset_id": "hle",
+      "split": "test",
+      "record_index": 1540
+    },
+    {
+      "dataset_id": "hle",
+      "split": "test",
+      "record_index": 1913
+    },
+    {
+      "dataset_id": "livecodebench",
+      "split": "test",
+      "record_index": 760
+    },
+    {
+      "dataset_id": "livecodebench",
+      "split": "test",
+      "record_index": 986
+    },
+    {
+      "dataset_id": "livecodebench",
+      "split": "test",
+      "record_index": 999
+    },
+    {
+      "dataset_id": "livemathbench",
+      "split": "test",
+      "record_index": 18
+    },
+    {
+      "dataset_id": "livemathbench",
+      "split": "test",
+      "record_index": 84
+    },
+    {
+      "dataset_id": "livemathbench",
+      "split": "test",
+      "record_index": 93
+    },
+    {
+      "dataset_id": "mmlupro",
+      "split": "test_3000",
+      "record_index": 258
+    },
+    {
+      "dataset_id": "mmlupro",
+      "split": "test_3000",
+      "record_index": 1960
+    },
+    {
+      "dataset_id": "mmlupro",
+      "split": "test_3000",
+      "record_index": 2223
+    },
+    {
+      "dataset_id": "simpleqa",
+      "split": "test",
+      "record_index": 2641
+    },
+    {
+      "dataset_id": "simpleqa",
+      "split": "test",
+      "record_index": 3019
+    },
+    {
+      "dataset_id": "simpleqa",
+      "split": "test",
+      "record_index": 3806
+    },
+    {
+      "dataset_id": "swe-bench",
+      "split": "verified",
+      "record_index": 93
+    },
+    {
+      "dataset_id": "swe-bench",
+      "split": "verified",
+      "record_index": 148
+    },
+    {
+      "dataset_id": "swe-bench",
+      "split": "verified",
+      "record_index": 197
+    },
+    {
+      "dataset_id": "tau2",
+      "split": "test",
+      "record_index": 97
+    },
+    {
+      "dataset_id": "tau2",
+      "split": "test",
+      "record_index": 223
+    },
+    {
+      "dataset_id": "tau2",
+      "split": "test",
+      "record_index": 244
+    }
+  ]
+}

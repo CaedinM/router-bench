@@ -1,0 +1,422 @@
+{
+  "source": "https://github.com/ynulihao/LLMRouterBench",
+  "source_config": "https://github.com/ynulihao/LLMRouterBench/blob/main/config/baseline_config_performance_cost.yaml",
+  "archive": "/Users/caedinm/Downloads/bench-release.tar.gz",
+  "models": [
+    "intern-s1",
+    "gemini-2.5-flash",
+    "gpt-5"
+  ],
+  "model_aliases": {
+    "GPT-5 Medium": "gpt-5"
+  },
+  "expected_records": 37338,
+  "loaded_records": 37338,
+  "expected_combinations": 30,
+  "loaded_combinations": 30,
+  "complete": false,
+  "issues": [
+    {
+      "dataset_id": "hle",
+      "split": "test",
+      "model_name": "gpt-5",
+      "expected_records": 2158,
+      "records": 2158,
+      "source_file": "bench-release/hle/test/gpt-5/hle-test-gpt-5-20251025_114522.json",
+      "source_sha256": "a7f381a66a8454e8aa2e0c73dba80e0a690dbd605b54580d482fb45c47522457",
+      "errors": {
+        "invalid_completion_tokens": 5
+      },
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "simpleqa",
+      "split": "test",
+      "model_name": "gpt-5",
+      "expected_records": 4326,
+      "records": 4326,
+      "source_file": "bench-release/simpleqa/test/gpt-5/simpleqa-test-gpt-5-20251025_131712.json",
+      "source_sha256": "dd7ce81675db4167bbfba89c65107ae3dbe2251fc1060ec4ef9b7ed70b01086f",
+      "errors": {
+        "invalid_completion_tokens": 5
+      },
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "hle",
+      "model_name": "gpt-5",
+      "error": "query alignment mismatch",
+      "missing_indices": [],
+      "extra_indices": [],
+      "different_query_indices": [
+        "1494"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "dataset_id": "aime",
+      "split": "hybrid",
+      "model_name": "intern-s1",
+      "expected_records": 60,
+      "records": 60,
+      "source_file": "bench-release/aime/hybrid/intern-s1/aime-hybrid-intern-s1-20251105_072828.json",
+      "source_sha256": "2cef88ade28b986e591e1c1465e7cb42b53ef23638dcd7be4e7a897bfc75ba58",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "aime",
+      "split": "hybrid",
+      "model_name": "gemini-2.5-flash",
+      "expected_records": 60,
+      "records": 60,
+      "source_file": "bench-release/aime/hybrid/gemini-2.5-flash/aime-hybrid-gemini-2.5-flash-20251105_072706.json",
+      "source_sha256": "19debc4971cdbf8118f421aaca264c4a8ae105e02bcb116ff2c2dc73d66457c2",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "aime",
+      "split": "hybrid",
+      "model_name": "gpt-5",
+      "expected_records": 60,
+      "records": 60,
+      "source_file": "bench-release/aime/hybrid/gpt-5/aime-hybrid-gpt-5-20251105_155925.json",
+      "source_sha256": "84e378e4df88065db47bfa2a29f168883a1557d723a2fb0360f7304d6a78e172",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "livemathbench",
+      "split": "test",
+      "model_name": "intern-s1",
+      "expected_records": 121,
+      "records": 121,
+      "source_file": "bench-release/livemathbench/test/intern-s1/livemathbench-test-intern-s1-20251105_072124.json",
+      "source_sha256": "ffc8710b8fa9c7a0476195d94fcbc77c561e359c4c96003996679b2e78939c5e",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "livemathbench",
+      "split": "test",
+      "model_name": "gemini-2.5-flash",
+      "expected_records": 121,
+      "records": 121,
+      "source_file": "bench-release/livemathbench/test/gemini-2.5-flash/livemathbench-test-gemini-2.5-flash-20251105_071201.json",
+      "source_sha256": "1a2ced3b79c3005726386294c8963f5bcef6c07826f977a06edcba1a0e94cf0c",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "livemathbench",
+      "split": "test",
+      "model_name": "gpt-5",
+      "expected_records": 121,
+      "records": 121,
+      "source_file": "bench-release/livemathbench/test/gpt-5/livemathbench-test-gpt-5-20251105_071836.json",
+      "source_sha256": "a448a13954d001d2021b2f67076f532c0f4fe021077e34ab56752306a47eb73c",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "livecodebench",
+      "split": "test",
+      "model_name": "intern-s1",
+      "expected_records": 1055,
+      "records": 1055,
+      "source_file": "bench-release/livecodebench/test/intern-s1/livecodebench-test-intern-s1-20251018_082944.json",
+      "source_sha256": "ef17a53dc31d1868ff924ac0ad5f15c07929b544abde32e484a60397786cd518",
+      "errors": {},
+      "nullable_fields": {
+        "null_ground_truth": 1055
+      }
+    },
+    {
+      "dataset_id": "livecodebench",
+      "split": "test",
+      "model_name": "gemini-2.5-flash",
+      "expected_records": 1055,
+      "records": 1055,
+      "source_file": "bench-release/livecodebench/test/gemini-2.5-flash/livecodebench-test-gemini-2.5-flash-20251013_003249.json",
+      "source_sha256": "902afe4bfa74465f524c21ea69b81a18015694929d59703f1647582db9089b36",
+      "errors": {},
+      "nullable_fields": {
+        "null_ground_truth": 1055
+      }
+    },
+    {
+      "dataset_id": "livecodebench",
+      "split": "test",
+      "model_name": "gpt-5",
+      "expected_records": 1055,
+      "records": 1055,
+      "source_file": "bench-release/livecodebench/test/gpt-5/livecodebench-test-gpt-5-20251013_115531.json",
+      "source_sha256": "68871a481043a8d129daaf300edc68b94f95df87ba676814c42bbc6bc2f81ad6",
+      "errors": {},
+      "nullable_fields": {
+        "null_ground_truth": 1055
+      }
+    },
+    {
+      "dataset_id": "swe-bench",
+      "split": "verified",
+      "model_name": "intern-s1",
+      "expected_records": 500,
+      "records": 500,
+      "source_file": "bench-release/swe-bench/verified/intern-s1/SWE-Bench-verified_intern-s1-20251024_152351.json",
+      "source_sha256": "6fdbbf745a2f831ce337cb29ac920c60082f6ca0e84861c6eaafbea92d0a8d3e",
+      "errors": {},
+      "nullable_fields": {
+        "null_ground_truth": 500,
+        "null_prediction": 1
+      }
+    },
+    {
+      "dataset_id": "swe-bench",
+      "split": "verified",
+      "model_name": "gemini-2.5-flash",
+      "expected_records": 500,
+      "records": 500,
+      "source_file": "bench-release/swe-bench/verified/gemini-2.5-flash/swe-bench-verified_gemini-2.5-flash-20251024_132354.json",
+      "source_sha256": "3533ce717feaa3fa790c4cb25bc1acac2a940ab6505d5dc81c42a619de92a105",
+      "errors": {},
+      "nullable_fields": {
+        "null_ground_truth": 500
+      }
+    },
+    {
+      "dataset_id": "swe-bench",
+      "split": "verified",
+      "model_name": "gpt-5",
+      "expected_records": 500,
+      "records": 500,
+      "source_file": "bench-release/swe-bench/verified/gpt-5/SWE-Bench-verified_gpt-5-medium-20251023_195432.json",
+      "source_sha256": "5c5b8b0c3882f2342d0801a330c8d6056c93ba679e5c3ea6d91e1088e8e61883",
+      "errors": {},
+      "nullable_fields": {
+        "null_ground_truth": 500
+      }
+    },
+    {
+      "dataset_id": "gpqa",
+      "split": "test",
+      "model_name": "intern-s1",
+      "expected_records": 198,
+      "records": 198,
+      "source_file": "bench-release/gpqa/test/intern-s1/gpqa-test-intern-s1-20251019_024125.json",
+      "source_sha256": "1a4ec5da1e79bb0e1fb9c15c0476a6e295db8421c7617672fdf552f37e4049b6",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "gpqa",
+      "split": "test",
+      "model_name": "gemini-2.5-flash",
+      "expected_records": 198,
+      "records": 198,
+      "source_file": "bench-release/gpqa/test/gemini-2.5-flash/gpqa-test-gemini-2.5-flash-20251019_024111.json",
+      "source_sha256": "2ae29b5fe93517c3a58546fa7236510cf6310267a0686ed3c12ba70bded99310",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "gpqa",
+      "split": "test",
+      "model_name": "gpt-5",
+      "expected_records": 198,
+      "records": 198,
+      "source_file": "bench-release/gpqa/test/gpt-5/gpqa-test-gpt-5-20251019_024120.json",
+      "source_sha256": "8a2aae8f6b105db1e40876b269f65005c89430c966cbed9fe7593a25a7f35191",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "hle",
+      "split": "test",
+      "model_name": "intern-s1",
+      "expected_records": 2158,
+      "records": 2158,
+      "source_file": "bench-release/hle/test/intern-s1/hle-test-intern-s1-20251026_021212.json",
+      "source_sha256": "b66e51ed47ef34999b5852edb0a6cd46fbf6e95261e944d2b49b084cfe3e4ddb",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "hle",
+      "split": "test",
+      "model_name": "gemini-2.5-flash",
+      "expected_records": 2158,
+      "records": 2158,
+      "source_file": "bench-release/hle/test/gemini-2.5-flash/hle-test-gemini-2.5-flash-20251024_095135.json",
+      "source_sha256": "a65e74c86d2c89b3fed721f846187831d108419b180213ae01a8d15fe1f56746",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "hle",
+      "split": "test",
+      "model_name": "gpt-5",
+      "expected_records": 2158,
+      "records": 2158,
+      "source_file": "bench-release/hle/test/gpt-5/hle-test-gpt-5-20251025_114522.json",
+      "source_sha256": "a7f381a66a8454e8aa2e0c73dba80e0a690dbd605b54580d482fb45c47522457",
+      "errors": {
+        "invalid_completion_tokens": 5
+      },
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "mmlupro",
+      "split": "test_3000",
+      "model_name": "intern-s1",
+      "expected_records": 3000,
+      "records": 3000,
+      "source_file": "bench-release/mmlupro/test_3000/intern-s1/mmlupro-test_3000-intern-s1-20251026_104015.json",
+      "source_sha256": "02c3b7b990fc566b597293548b466db69c65af6b91213e236960eca78e57479f",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "mmlupro",
+      "split": "test_3000",
+      "model_name": "gemini-2.5-flash",
+      "expected_records": 3000,
+      "records": 3000,
+      "source_file": "bench-release/mmlupro/test_3000/gemini-2.5-flash/mmlupro-test_3000-gemini-2.5-flash-20251024_100341.json",
+      "source_sha256": "ccc7f21bbee27a527535e1ccaec379dfc08ea8d5c1c00aec979b58cf566c208f",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "mmlupro",
+      "split": "test_3000",
+      "model_name": "gpt-5",
+      "expected_records": 3000,
+      "records": 3000,
+      "source_file": "bench-release/mmlupro/test_3000/gpt-5/mmlupro-test_3000-gpt-5-20251025_121135.json",
+      "source_sha256": "e4265bc336265cabf16d79386c7bfd41b77671f9d6b61e494e2d4cba1d401334",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "simpleqa",
+      "split": "test",
+      "model_name": "intern-s1",
+      "expected_records": 4326,
+      "records": 4326,
+      "source_file": "bench-release/simpleqa/test/intern-s1/simpleqa-test-intern-s1-20251026_163639.json",
+      "source_sha256": "35be4c9f002826c49f9e9ef8ea8fe75061baf14ac5f7faffe8a35b818268b831",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "simpleqa",
+      "split": "test",
+      "model_name": "gemini-2.5-flash",
+      "expected_records": 4326,
+      "records": 4326,
+      "source_file": "bench-release/simpleqa/test/gemini-2.5-flash/simpleqa-test-gemini-2.5-flash-20251024_101744.json",
+      "source_sha256": "648d4e0b18bb1b9e4e4d7be58d3ecdb232976a247649984bae41a7dedd96ea81",
+      "errors": {},
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "simpleqa",
+      "split": "test",
+      "model_name": "gpt-5",
+      "expected_records": 4326,
+      "records": 4326,
+      "source_file": "bench-release/simpleqa/test/gpt-5/simpleqa-test-gpt-5-20251025_131712.json",
+      "source_sha256": "dd7ce81675db4167bbfba89c65107ae3dbe2251fc1060ec4ef9b7ed70b01086f",
+      "errors": {
+        "invalid_completion_tokens": 5
+      },
+      "nullable_fields": {}
+    },
+    {
+      "dataset_id": "arenahard",
+      "split": "test",
+      "model_name": "intern-s1",
+      "expected_records": 750,
+      "records": 750,
+      "source_file": "bench-release/arenahard/intern-s1/arenahard-test-intern-s1-20251029_034530.json",
+      "source_sha256": "fa320e3ae32c9b4302899256215e7176a69b048066cdcbaac2292d6fbb088872",
+      "errors": {},
+      "nullable_fields": {
+        "null_ground_truth": 750
+      }
+    },
+    {
+      "dataset_id": "arenahard",
+      "split": "test",
+      "model_name": "gemini-2.5-flash",
+      "expected_records": 750,
+      "records": 750,
+      "source_file": "bench-release/arenahard/gemini-2.5-flash/arenahard-test-gemini-2.5-flash-20251028_084349.json",
+      "source_sha256": "3f7ad9a1a2001c70643668cd1e46da5adab9406e66f184cb409bd4359d9e983d",
+      "errors": {},
+      "nullable_fields": {
+        "null_ground_truth": 750
+      }
+    },
+    {
+      "dataset_id": "arenahard",
+      "split": "test",
+      "model_name": "gpt-5",
+      "expected_records": 750,
+      "records": 750,
+      "source_file": "bench-release/arenahard/gpt-5/arenahard-test-gpt-5-20251029_194015.json",
+      "source_sha256": "9fb0ae764220ce0c271d7e5c9d88f2ec648fad6493b80deb7f3b6024b3b86fdc",
+      "errors": {},
+      "nullable_fields": {
+        "null_ground_truth": 750
+      }
+    },
+    {
+      "dataset_id": "tau2",
+      "split": "test",
+      "model_name": "intern-s1",
+      "expected_records": 278,
+      "records": 278,
+      "source_file": "bench-release/tau2/test/intern-s1/tau2-test-intern-s1-20251030_003124.json",
+      "source_sha256": "ee4fd56aef32bf50b19f54bf0eb495982789ae4fb4c261047477827a6b5c28f3",
+      "errors": {},
+      "nullable_fields": {
+        "null_prediction": 278,
+        "null_ground_truth": 278
+      }
+    },
+    {
+      "dataset_id": "tau2",
+      "split": "test",
+      "model_name": "gemini-2.5-flash",
+      "expected_records": 278,
+      "records": 278,
+      "source_file": "bench-release/tau2/test/gemini-2.5-flash/tau2-test-gemini-2.5-flash-20251030_003124.json",
+      "source_sha256": "d9212145b296862577a8555f866388d9e5bf9781132edc2913d6f398863b201d",
+      "errors": {},
+      "nullable_fields": {
+        "null_prediction": 278,
+        "null_ground_truth": 278
+      }
+    },
+    {
+      "dataset_id": "tau2",
+      "split": "test",
+      "model_name": "gpt-5",
+      "expected_records": 278,
+      "records": 278,
+      "source_file": "bench-release/tau2/test/gpt-5/tau2-test-gpt-5-20251030_003124.json",
+      "source_sha256": "7a4757830dfa86f74d1b00029de04e5564da7d42cd64298d498844dec2ebe4b5",
+      "errors": {},
+      "nullable_fields": {
+        "null_prediction": 278,
+        "null_ground_truth": 278
+      }
+    }
+  ],
+  "coverage_complete": true,
+  "score_cost_complete": true
+}

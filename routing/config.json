@@ -1,0 +1,23 @@
+{
+  "dataset": "router-bench-intern-flash-gpt5-full-v1",
+  "split": "test",
+  "phoenix_url": "PHOENIX_BASE_URL",
+  "system_prompt_variant": "default",
+  "routers": [
+    {
+      "name": "jev",
+      "provider": "jev",
+      "model": "jev-1.13.0",
+      "api_key_env": "TYPESAFE_API_KEY",
+      "parameters": {}
+    },
+    {
+      "name": "openai-decisions",
+      "provider": "openai_decisions",
+      "model": "gpt-6-luna",
+      "api_key_env": "OPENAI_API_KEY",
+      "parameters": {}
+    }
+  ],
+  "dataset_version": "RGF0YXNldFZlcnNpb246MTU="
+}

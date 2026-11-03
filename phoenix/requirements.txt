@@ -1,0 +1,4 @@
+arize-phoenix==20.26.1
+arize-phoenix-client==3.5.0
+pandas==3.1.0
+python-dotenv==1.2.4

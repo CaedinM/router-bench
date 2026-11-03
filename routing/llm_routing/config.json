@@ -1,0 +1,18 @@
+{
+  "dataset": "router-bench-intern-flash-gpt5-full-v1",
+  "dataset_version": "RGF0YXNldFZlcnNpb246MTU=",
+  "split": "development",
+  "phoenix_url": "PHOENIX_BASE_URL",
+  "system_prompt_variant": "default",
+  "routers": [
+    {
+      "name": "haiku",
+      "provider": "anthropic",
+      "model": "claude-haiku-5-5",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "parameters": {
+        "max_tokens": 4096
+      }
+    }
+  ]
+}
