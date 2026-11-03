@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "router-bench"
+version = "0.1.0"
+description = "Research benchmark comparing decision models and LLMs as routers"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "arize-phoenix==20.26.1",
+    "arize-phoenix-client==3.5.0",
+    "pandas==3.1.0",
+    "python-dotenv==1.2.4",
+    "anthropic==1.17.0",
+    "pydantic==2.14.1",
+]
+
+[project.optional-dependencies]
+notebook = ["jupyterlab>=4,<5", "ipykernel>=6,<8", "ipywidgets>=8,<9"]
+
+[tool.setuptools.packages.find]
+include = ["routing", "routing.*", "evaluators", "scripts"]
+namespaces = false
+
+[tool.setuptools.package-data]
+routing = ["config.json"]
+"routing.llm_routing" = ["config.json"]

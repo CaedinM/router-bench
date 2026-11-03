@@ -16,6 +16,8 @@ The active dataset is `router-bench-intern-flash-gpt5-full-v1`: Intern-S1, Gemin
 
 Development contains three questions per benchmark. Membership preserves the original score-stratified smoke test and is never recalculated from active-pool scores. Keep test outcomes separate from prompt tuning. Previous use or duplicate questions across splits have not been audited.
 
+The uploader also creates benchmark-specific splits within each partition, such as `development/aime` and `test/gpqa`. In the notebook, `upload_dataset()` adds missing benchmark splits to an existing dataset without appending examples or changing the development/test memberships. Set `benchmarks = None` for all benchmarks, or a list such as `["aime", "gpqa"]` to run only those benchmarks within the selected partition.
+
 The routing prompt comes from the Gemini 2.5 Flash record. Original model fields remain in private reference outputs under `intern`, `flash`, and `gpt5` prefixes; metadata flags exact-text mismatches. Published costs are historical. Ten questions have invalid GPT-5 token counts; see `../data/README.md` for paired exclusions. Solver identities and original records must not be passed to a router. Pin the uploaded dataset version in each routing configuration before comparing runs.
 
 ## Routing experiments

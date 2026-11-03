@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, patch
 
 from anthropic import Anthropic
 import httpx2
@@ -87,10 +87,14 @@ class HaikuRoutingTests(unittest.TestCase):
 
         dataset = Dataset([{'id': 'e1', 'input': {'prompt': 'question', 'extra': 'hidden'},
                             'output': {'solver': 'hidden'}, 'metadata': {'secret': 'hidden'}}])
-        client = SimpleNamespace(datasets=Mock(), experiments=Mock())
+        client = SimpleNamespace(datasets=SimpleNamespace(get_dataset=AsyncMock()),
+                                 experiments=SimpleNamespace(run_experiment=AsyncMock()))
         client.datasets.get_dataset.return_value = dataset
-        client.experiments.run_experiment.side_effect = lambda **kwargs: [
-            kwargs['task'](example['input'], example) for example in kwargs['dataset']]
+
+        async def run(**kwargs):
+            return [await kwargs['task'](example['input'], example) for example in kwargs['dataset']]
+
+        client.experiments.run_experiment.side_effect = run
         with TemporaryDirectory() as folder, patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'key'}), patch(
                 'routing.llm_routing.router.Anthropic') as factory:
             factory.return_value.messages.parse.return_value = SimpleNamespace(

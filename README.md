@@ -1,5 +1,9 @@
 # Router Bench
 
+To run the benchmark yourself with all three routers or a selected subset, use the [routing experiment notebook](notebooks/run_routing_experiments.ipynb). It uploads or reuses the Phoenix dataset and defaults to the 30-question development split.
+
+With Python 3.12 or newer, install the project from this checkout with `python -m pip install -e ".[notebook]"` (or `-e .` without notebook tools). The notebook separates one-time dependency and kernel setup from the cells needed each session. Python code can import `routing`, `routing.upload_dataset`, and `evaluators` directly, without modifying `sys.path`. Keep the local benchmark data in the checkout; data, credentials, results, and Phoenix storage are not included in the package. Existing CLI commands remain supported.
+
 The purpose of this eval is to benchmark the cost-accuracy tradeoffs of using different models as model routers.
 
 The pipeline generates routing decisions for over 12,416 prompts benchmark prompts and evluates them via data available here: https://github.com/ynulihao/LLMRouterBench

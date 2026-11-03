@@ -13,3 +13,8 @@ phoenix/storage/
 # Routing experiment decision logs
 routing/results/
 routing/llm_routing/results/
+
+# Python packaging artifacts
+*.egg-info/
+build/
+dist/

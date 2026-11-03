@@ -38,16 +38,16 @@ PROMPT_OBJECTIVES = {
 }
 
 
-def build_system_prompt(profiles=None, *, variant='default'):
+def build_system_prompt(*, variant='default', custom_prompt=None):
+    """Customize routing instructions while keeping benchmark descriptions fixed."""
     if variant != 'default' and variant not in PROMPT_OBJECTIVES:
         raise ValueError(f'Unknown system prompt variant: {variant}')
-    profiles = DEFAULT_PROFILES if profiles is None else profiles
-    if set(profiles) != set(CANDIDATES):
-        raise ValueError('Profiles must describe exactly Candidate A, Candidate B, and Candidate C')
-    prompt = SYSTEM_PROMPT
-    if variant != 'default':
+    if custom_prompt is not None and (not isinstance(custom_prompt, str) or not custom_prompt.strip()):
+        raise ValueError('Custom system prompt must be a nonempty string')
+    prompt = SYSTEM_PROMPT if custom_prompt is None else custom_prompt
+    if custom_prompt is None and variant != 'default':
         prompt = prompt.replace('Select the candidate that best fits the request.', PROMPT_OBJECTIVES[variant])
     return prompt + '\n\n' + '\n'.join(
-        f'{label}: {profiles[label]}'
+        f'{label}: {DEFAULT_PROFILES[label]}'
         for label in CANDIDATES
     )

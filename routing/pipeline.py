@@ -1,5 +1,6 @@
 """Run one Phoenix experiment per router; persist decisions without evaluators."""
 import argparse
+import asyncio
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -12,6 +13,7 @@ from uuid import uuid4
 from routing.candidates import CANDIDATE_MODELS
 from routing.prompts import build_system_prompt
 from routing.router import ModelRouter
+from scripts.load_benchmarks import BENCHMARKS
 
 PROVIDERS = {
     'jev': ('routing.providers.jev', 'JevClassifier', 'TYPESAFE_API_KEY'),
@@ -19,19 +21,47 @@ PROVIDERS = {
     'anthropic': ('routing.llm_routing.router', 'HaikuClassifier', 'ANTHROPIC_API_KEY'),
 }
 
+ROUTING_CONCURRENCY = 16
 
-def load_environment():
-    """Load the project .env without replacing variables already set by the caller."""
+
+def load_environment(*, quiet_phoenix=False):
+    """Load .env; optionally filter known, harmless Phoenix notebook startup noise."""
     from dotenv import load_dotenv
 
     root = Path(__file__).resolve().parents[1]
     load_dotenv(root / '.env', override=False)
+    os.environ.setdefault('PHOENIX_WORKING_DIR', str(root / 'phoenix/storage'))
+    os.environ.setdefault('PHOENIX_BASE_URL', 'http://127.0.0.1:6006')
+    if quiet_phoenix:
+        import logging
+        import warnings
+        from pydantic.json_schema import PydanticJsonSchemaWarning
+        from sqlalchemy.exc import SAWarning
+
+        warnings.filterwarnings(
+            'ignore', category=PydanticJsonSchemaWarning, module=r'pydantic\.json_schema',
+            message=r'Default value <phoenix\.db\.types\.db_helper_types\.Undefined object at .*'
+                    r'is not JSON serializable; excluding default from JSON schema.*')
+        warnings.filterwarnings(
+            'ignore', category=SAWarning,
+            message=r'Column-expression-level unary distinct\(\) should not be used outside '
+                    r'of an aggregate function\..*')
+        logging.getLogger('phoenix.server.app').addFilter(
+            lambda record: not record.getMessage().startswith(
+                'boto3 is installed but aioboto3 is not. To use AWS Bedrock models in Playground'))
 
 
-def build_router(router_config, system_prompt):
-    """Instantiate one router with its configured provider classifier."""
+def build_router(router_config=None, system_prompt=None, *, system_prompt_variant='default',
+                 custom_system_prompt=None, **router_attributes):
+    """Build a router from a CLI config dict or direct provider keyword attributes."""
     from importlib import import_module
 
+    router_config = {**(router_config or {}), **router_attributes}
+    if system_prompt is not None and custom_system_prompt is not None:
+        raise ValueError('Pass system_prompt or custom_system_prompt, not both')
+    if system_prompt is None:
+        system_prompt = build_system_prompt(
+            variant=system_prompt_variant, custom_prompt=custom_system_prompt)
     router_name = router_config['name']
     if not isinstance(router_name, str) or not router_name.strip():
         raise ValueError('Router name must be nonempty')
@@ -57,7 +87,11 @@ def build_router(router_config, system_prompt):
         api_key=api_key,
         **provider_options,
     )
-    return ModelRouter(classifier)
+    router = ModelRouter(classifier)
+    router.router_config = dict(router_config)
+    router.system_prompt = system_prompt
+    router.system_prompt_variant = 'custom' if custom_system_prompt is not None else system_prompt_variant
+    return router
 
 
 def make_task(router, router_name, output_path, context):
@@ -117,14 +151,23 @@ def make_phoenix_client(config, *, asynchronous=False):
     return client
 
 
-def load_dataset(client, config):
+async def load_dataset(client, config):
     """Load the selected split and validate prompts before creating an experiment."""
     split = config.get('split', 'development')
     if split not in ('development', 'test'):
         raise ValueError('split must be development or test')
-    dataset = client.datasets.get_dataset(
+    benchmarks = config.get('benchmarks')
+    if benchmarks is not None:
+        if not isinstance(benchmarks, (list, tuple)) or not benchmarks:
+            raise ValueError('benchmarks must be a nonempty list, or None for all benchmarks')
+        if any(not isinstance(name, str) or name not in BENCHMARKS for name in benchmarks):
+            raise ValueError(f'Unknown benchmark; supported: {sorted(BENCHMARKS)}')
+        if len(benchmarks) != len(set(benchmarks)):
+            raise ValueError('Select each benchmark only once')
+    splits = [split] if benchmarks is None else [f'{split}/{name}' for name in benchmarks]
+    dataset = await client.datasets.get_dataset(
         dataset=config.get('dataset', 'router-bench-intern-flash-gpt5-full-v1'),
-        version_id=config.get('dataset_version'), splits=[split], timeout=600)
+        version_id=config.get('dataset_version'), splits=splits, timeout=600)
     if not len(dataset):
         raise ValueError('Selected dataset split is empty')
     for example in dataset:
@@ -145,36 +188,97 @@ def build_run_context(dataset, split, system_prompt):
     }
 
 
-def run_router_experiment(client, dataset, router, router_config, system_prompt, output_path, context):
+async def run_router_experiment(client, dataset, router, router_config, system_prompt, output_path, context):
     """Save one router's decisions in Phoenix and the local decision log."""
     router_name = router_config['name']
-    return client.experiments.run_experiment(
+    sync_task = make_task(router, router_name, output_path, context)
+
+    async def task(input, example):
+        return await asyncio.to_thread(sync_task, input, example)
+
+    return await client.experiments.run_experiment(
         dataset=dataset,
-        task=make_task(router, router_name, output_path, context),
+        task=task,
         experiment_name=f'{router_name}-{context.get("system_prompt_variant", "default")}-{context["run_id"]}',
         experiment_metadata={**context, 'router_config': router_config, 'system_prompt': system_prompt,
                              'candidate_models': CANDIDATE_MODELS},
         timeout=router_config.get('timeout', 60) + 10,
         retries=1,
+        concurrency=ROUTING_CONCURRENCY,
     )
 
 
 def run_pipeline(config, output_path, *, router_name, client=None):
-    """Prepare the selected router and dataset, then run its decision experiment."""
+    """Run from synchronous code; an injected client must be a Phoenix AsyncClient."""
+    return asyncio.run(run_pipeline_async(
+        config, output_path, router_name=router_name, client=client))
+
+
+async def run_pipeline_async(config=None, output_path=None, *, router_name=None, client=None,
+                             routers=None, split=None, benchmarks=None):
+    """Run one configured router, or initialized routers on one pinned dataset split.
+
+    Notebook callers pass initialized ``routers`` and ``split`` directly.
+    Each router gets a new experiment and unique log; explicit output_path is only
+    supported for a single router. Existing single-router callers remain supported.
+    """
     load_environment()
+    config = dict(config or {})
+    if split is not None:
+        config['split'] = split
+    if benchmarks is not None:
+        config['benchmarks'] = benchmarks
     variant = config.get('system_prompt_variant', 'default')
-    system_prompt = build_system_prompt(config.get('candidate_profiles'), variant=variant)
-    router_config = select_router_config(config, router_name)
-    router = build_router(router_config, system_prompt)
-    client = make_phoenix_client(config) if client is None else client
-    dataset = load_dataset(client, config)
-    context = build_run_context(dataset, config.get('split', 'development'), system_prompt)
-    context['system_prompt_variant'] = variant
-    output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    experiment = run_router_experiment(
-        client, dataset, router, router_config, system_prompt, output_path, context)
-    return {router_name: experiment}
+    if routers is None:
+        system_prompt = build_system_prompt(variant=variant)
+        router_config = select_router_config(config, router_name)
+        selected = [(router_config, build_router(
+            router_config, system_prompt, system_prompt_variant=variant))]
+    else:
+        if router_name is not None:
+            raise ValueError('Pass routers or router_name, not both')
+        routers = list(routers)
+        if not routers:
+            raise ValueError('Select at least one router')
+        selected = [(router.router_config, router) for router in routers]
+        names = [item[0]['name'] for item in selected]
+        if len(names) != len(set(names)):
+            raise ValueError('Select each router only once')
+        system_prompt = routers[0].system_prompt
+        variant = routers[0].system_prompt_variant
+        if any(router.system_prompt != system_prompt for router in routers):
+            raise ValueError('All routers must use the same system prompt')
+        if any(router.system_prompt_variant != variant for router in routers):
+            raise ValueError('All routers must use the same system prompt variant')
+    if output_path is not None and len(selected) != 1:
+        raise ValueError('An explicit output_path requires exactly one router')
+
+    owns_client = client is None
+    client = make_phoenix_client(config, asynchronous=True) if owns_client else client
+    try:
+        dataset = await load_dataset(client, config)
+        print(f'Loaded {len(dataset):,} {config.get("split", "development")} questions; '
+              f'dataset version: {dataset.version_id}')
+        results = {}
+        for router_config, router in selected:
+            name = router_config['name']
+            context = build_run_context(dataset, config.get('split', 'development'), system_prompt)
+            context.update(system_prompt_variant=variant, concurrency=ROUTING_CONCURRENCY)
+            if config.get('benchmarks') is not None:
+                context['benchmarks'] = list(config['benchmarks'])
+            path = Path(output_path) if output_path is not None else (
+                Path(__file__).resolve().parent / 'results' / f'{name}-{context["run_id"]}.jsonl')
+            path.parent.mkdir(parents=True, exist_ok=True)
+            print(f'Running {name}; log: {path.resolve()}')
+            experiment = await run_router_experiment(
+                client, dataset, router, router_config, system_prompt, path, context)
+            results[name] = experiment
+            print(f'Completed {name}: experiment {experiment["experiment_id"]}'
+                  if 'experiment_id' in experiment else f'Completed {name}')
+        return results
+    finally:
+        if owns_client:
+            await client._client.aclose()
 
 
 def main():

@@ -1,13 +1,15 @@
+import asyncio
 import json
 import io
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Barrier, Lock
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from urllib.error import HTTPError
 
-from routing.pipeline import make_phoenix_client, make_task, run_pipeline
+from routing.pipeline import make_phoenix_client, make_task, run_pipeline, run_router_experiment
 from routing.prompts import CANDIDATES, DEFAULT_PROFILES, PROMPT_OBJECTIVES, build_system_prompt
 from routing.providers.jev import JevClassifier
 from routing.providers.http import ProviderHTTPError, post_json
@@ -16,6 +18,67 @@ from routing.router import ModelRouter
 
 
 class RoutingTests(unittest.TestCase):
+    def test_pipeline_closes_its_async_client_on_success_and_failure(self):
+        class Dataset(list):
+            id = 'dataset'
+            version_id = 'version'
+
+        for error in (None, RuntimeError('experiment failed')):
+            with self.subTest(error=error), TemporaryDirectory() as folder:
+                client = SimpleNamespace(
+                    datasets=SimpleNamespace(get_dataset=AsyncMock(return_value=Dataset([
+                        {'id': 'e1', 'input': {'prompt': 'question'}}]))),
+                    experiments=SimpleNamespace(run_experiment=AsyncMock(side_effect=error)),
+                    _client=SimpleNamespace(aclose=AsyncMock()))
+                with patch('routing.pipeline.build_router'), patch(
+                        'routing.pipeline.make_phoenix_client', return_value=client) as factory:
+                    config = {'routers': [{'name': 'test'}]}
+                    if error:
+                        with self.assertRaisesRegex(RuntimeError, 'experiment failed'):
+                            run_pipeline(config, Path(folder) / 'log.jsonl', router_name='test')
+                    else:
+                        run_pipeline(config, Path(folder) / 'log.jsonl', router_name='test')
+                    factory.assert_called_once_with(config, asynchronous=True)
+                    client._client.aclose.assert_awaited_once()
+
+    def test_concurrent_requests_preserve_each_examples_decision_and_log(self):
+        barrier = Barrier(3)
+        lock = Lock()
+        active = peak = 0
+
+        class Classifier:
+            def predict(self, prompt):
+                nonlocal active, peak
+                with lock:
+                    active += 1
+                    peak = max(peak, active)
+                try:
+                    barrier.wait(timeout=5)
+                    return prompt
+                finally:
+                    with lock:
+                        active -= 1
+
+        async def run(**kwargs):
+            self.assertEqual(kwargs['concurrency'], 16)
+            return await asyncio.gather(*[
+                kwargs['task']({'prompt': label}, {'id': label}) for label in CANDIDATES])
+
+        client = SimpleNamespace(experiments=SimpleNamespace(run_experiment=AsyncMock(side_effect=run)))
+        with TemporaryDirectory() as folder:
+            output = Path(folder) / 'decisions.jsonl'
+            results = asyncio.run(run_router_experiment(
+                client, [], ModelRouter(Classifier()), {'name': 'test'}, 'shared', output,
+                {'run_id': 'run', 'concurrency': 16}))
+            self.assertEqual(peak, 3)
+            self.assertEqual([result['decision'] for result in results], list(CANDIDATES))
+            records = [json.loads(line) for line in output.read_text().splitlines()]
+            self.assertEqual({record['example_id'] for record in records}, set(CANDIDATES))
+            for record in records:
+                self.assertEqual(record['decision'], record['example_id'])
+                self.assertEqual(record['status'], 'ok')
+                self.assertEqual(record['concurrency'], 16)
+
     def test_objective_variants_preserve_anonymous_profiles_and_default(self):
         default = build_system_prompt()
         variants = [build_system_prompt(variant=variant) for variant in PROMPT_OBJECTIVES]
@@ -183,7 +246,7 @@ class RoutingTests(unittest.TestCase):
 
     def test_failure_saved_without_fallback_and_next_example_runs(self):
         router = Mock()
-        router.route_with_usage.side_effect = [ValueError('invalid'), ('Candidate A', None)]
+        router.route.side_effect = [ValueError('invalid'), ('Candidate A', None)]
         with TemporaryDirectory() as folder:
             output = Path(folder) / 'decisions.jsonl'
             task = make_task(router, 'router', output, {'run_id': 'run'})
@@ -208,16 +271,17 @@ class RoutingTests(unittest.TestCase):
             dict(name='jev', provider='jev', model='test'),
             dict(name='openai', provider='openai_decisions', model='test'),
         ]}
-        # Anonymous profiles need no calibration configuration or separate process.
+        # Legacy profile settings cannot override the fixed benchmark descriptions.
         config['candidate_profiles'] = dict.fromkeys(CANDIDATES, 'Public-source profile')
         config['system_prompt_variant'] = 'accuracy-first'
-        client = SimpleNamespace(datasets=Mock(), experiments=Mock())
+        client = SimpleNamespace(datasets=SimpleNamespace(get_dataset=AsyncMock()),
+                                 experiments=SimpleNamespace(run_experiment=AsyncMock()))
         client.datasets.get_dataset.return_value = dataset
         calls = []
 
-        def run(**kwargs):
+        async def run(**kwargs):
             calls.append(kwargs)
-            return [kwargs['task'](item['input'], item) for item in kwargs['dataset']]
+            return [await kwargs['task'](item['input'], item) for item in kwargs['dataset']]
 
         client.experiments.run_experiment.side_effect = run
         with TemporaryDirectory() as folder, patch.dict('os.environ', {'TYPESAFE_API_KEY': 'test-key'}), patch(
@@ -232,9 +296,14 @@ class RoutingTests(unittest.TestCase):
                           calls[0]['experiment_metadata']['system_prompt'])
             self.assertEqual(calls[0]['experiment_metadata']['system_prompt_variant'], 'accuracy-first')
             self.assertEqual(calls[0]['retries'], 1)
+            self.assertEqual(calls[0]['concurrency'], 16)
+            self.assertEqual(calls[0]['experiment_metadata']['concurrency'], 16)
             payload = post.call_args.args[1]
             self.assertEqual(payload['state'], 'q1')
             self.assertNotIn('hidden', json.dumps(payload))
+            self.assertNotIn('Public-source profile', json.dumps(payload))
+            for label, description in DEFAULT_PROFILES.items():
+                self.assertIn(f'{label}: {description}', calls[0]['experiment_metadata']['system_prompt'])
             record = json.loads(output.read_text())
             self.assertEqual(record['example_id'], 'e1')
             self.assertEqual(record['dataset_version'], 'version-id')
@@ -251,11 +320,11 @@ class RoutingTests(unittest.TestCase):
             self.assertEqual([r['router'] for r in records], ['jev', 'openai'])
             self.assertEqual(records[0]['system_prompt_sha256'], records[1]['system_prompt_sha256'])
 
-    def test_profile_validation(self):
-        with self.assertRaises(ValueError):
+    def test_profile_overrides_are_not_supported(self):
+        with self.assertRaises(TypeError):
             build_system_prompt({'Candidate A': 'profile'})
-        with self.assertRaises(ValueError):
-            build_system_prompt({})
+        with self.assertRaises(TypeError):
+            build_system_prompt(profiles=dict(DEFAULT_PROFILES))
 
 
 if __name__ == '__main__':
