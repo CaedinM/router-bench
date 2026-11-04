@@ -122,7 +122,7 @@
     <p class="kicker">Evaluation cookbook · Router Bench</p>
     <h1>Evaluating model routers for cost and accuracy</h1>
     <p class="dek">Compare three routing approaches on the same questions, vary their instructions, and measure the downstream quality, total cost, and routing latency of each configuration.</p>
-    <p class="byline"><span>Caedin M</span><span>November 3, 2026</span><span><a href="../notebooks/run_routing_experiments.ipynb">Follow the notebook</a></span></p>
+    <p class="byline"><span>Caedin M</span><span>November 3, 2026</span><span><a href="https://github.com/CaedinM/router-bench#run-experiments">Run the notebook locally</a></span></p>
   </div>
 </header>
 <main class="wrap">
@@ -130,7 +130,7 @@
 <p>Applications often receive requests with different levels of difficulty. A short factual question and a multi-step coding task may arrive through the same interface, but they don't require the same model. Sending every request to a higher-cost model can spend more than necessary; sending every request to a cheaper model can reduce answer quality. A router attempts to make that choice for each request.</p>
 <p>This makes routing relevant to mixed-traffic assistants, coding workflows, and systems with fixed inference budgets. The decision also introduces its own cost and latency. Savings on the selected model are useful only when considered alongside the quality of its answer and the overhead of choosing it.</p>
 <p>We chose this topic to compare specialized decision models with a lightweight language model as routers. We want to understand three things: how their selections change downstream benchmark performance, how much the routing objective affects those selections, and how routing overhead changes the cost and latency comparison.</p>
-<p>This cookbook walks through <a href="../notebooks/run_routing_experiments.ipynb">the routing experiment notebook</a>, from dataset preparation through evaluation. We use Jev, OpenAI Decisions, and Claude Haiku 5.5 to choose among three anonymous solving models. The experiment is a research comparison: its results describe this candidate pool and these benchmark questions, rather than establishing a router for deployment.</p>
+<p>This cookbook walks through the routing experiment notebook. To run it locally, <a href="https://github.com/CaedinM/router-bench#run-experiments">clone the repository and follow the setup instructions</a>. The walkthrough covers dataset preparation through evaluation. We use Jev, OpenAI Decisions, and Claude Haiku 5.5 to choose among three anonymous solving models. The experiment is a research comparison: its results describe this candidate pool and these benchmark questions, rather than establishing a router for deployment.</p>
 <nav aria-label="Cookbook outline"><p><strong>What we will do</strong></p><ol>
 <li><a href="#setup">Set up the notebook and Phoenix.</a></li>
 <li><a href="#dataset">Prepare paired benchmark records and fixed splits.</a></li>
