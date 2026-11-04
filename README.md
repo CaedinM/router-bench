@@ -2,7 +2,7 @@
 
 A research benchmark comparing decision models and lightweight LLMs as model routers.
 
-Read the [evaluation write-up](blog/router-bench-cost-accuracy-of-llm-routers.html) for the motivation, notebook walkthrough, engineering decisions, results, and takeaways. Download the HTML file and open it in a browser to view the formatted article.
+Read the [evaluation write-up](https://caedinm.github.io/router-bench/) for the motivation, notebook walkthrough, engineering decisions, results, and takeaways.
 
 ## Repository structure
 
@@ -25,7 +25,14 @@ pyproject.toml        Python package configuration and dependencies
 
 ## Run experiments
 
-Use Python 3.12 or newer. From the repository root:
+Install Git and Python 3.12 or newer, then clone the repository:
+
+```sh
+git clone https://github.com/CaedinM/router-bench.git
+cd router-bench
+```
+
+On macOS/Linux, run:
 
 ```sh
 python3.12 -m venv .venv
@@ -34,6 +41,8 @@ cp .env.example .env
 .venv/bin/python -m ipykernel install --user --name router-bench --display-name "Router Bench"
 .venv/bin/python -m jupyterlab notebooks/run_routing_experiments.ipynb
 ```
+
+On Windows (PowerShell), create the environment with `py -3.12 -m venv .venv`, replace `.venv/bin/python` with `.venv\Scripts\python.exe` in the commands above, and use `Copy-Item .env.example .env` to copy the environment template.
 
 Fill in `.env` with the API keys for the routers you plan to run.
 
