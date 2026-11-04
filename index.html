@@ -121,16 +121,24 @@
   <div class="wrap" style="padding-bottom:0">
     <p class="kicker">Evaluation cookbook · Router Bench</p>
     <h1>Evaluating model routers for cost and accuracy</h1>
-    <p class="dek">Compare three routing approaches on the same questions, vary their instructions, and measure the downstream quality, total cost, and routing latency of each configuration.</p>
+    <p class="dek">Compare three routing approaches on the same questions, vary their instructions, and measure downstream quality, total cost, and routing latency for each configuration.</p>
     <p class="byline"><span>Caedin M</span><span>November 3, 2026</span><span><a href="https://github.com/CaedinM/router-bench#run-experiments">Run the notebook locally</a></span></p>
   </div>
 </header>
 <main class="wrap">
 <h2 id="introduction">Why evaluate model routing?</h2>
-<p>Applications often receive requests with different levels of difficulty. A short factual question and a multi-step coding task may arrive through the same interface, but they don't require the same model. Sending every request to a higher-cost model can spend more than necessary; sending every request to a cheaper model can reduce answer quality. A router attempts to make that choice for each request.</p>
-<p>This makes routing relevant to mixed-traffic assistants, coding workflows, and systems with fixed inference budgets. The decision also introduces its own cost and latency. Savings on the selected model are useful only when considered alongside the quality of its answer and the overhead of choosing it.</p>
-<p>We chose this topic to compare specialized decision models with a lightweight language model as routers. We want to understand three things: how their selections change downstream benchmark performance, how much the routing objective affects those selections, and how routing overhead changes the cost and latency comparison.</p>
-<p>This cookbook walks through the routing experiment notebook. To run it locally, <a href="https://github.com/CaedinM/router-bench#run-experiments">clone the repository and follow the setup instructions</a>. The walkthrough covers dataset preparation through evaluation. We use Jev, OpenAI Decisions, and Claude Haiku 5.5 to choose among three anonymous solving models. The experiment is a research comparison: its results describe this candidate pool and these benchmark questions, rather than establishing a router for deployment.</p>
+<p>Agents often receive requests with different levels of difficulty. A short factual question and a multi-step coding task may arrive through the same interface, but they do not require the same model. Sending every request to a higher-cost model can spend more than necessary; sending every request to a cheaper model can reduce answer quality. A router attempts to make that choice for each request.</p>
+<p>With the release of decision models and APIs like Jev (<a href="https://docs.typesafe.ai/models">learn about Jev here</a>) and OpenAI Decisions API, I thought it’d be a good idea to benchmark these cheap decision models on their routing ability.</p>
+<p>Routing is relevant to mixed-traffic assistants, coding workflows, and systems with fixed inference budgets. The routing decision also introduces its own cost and latency. Savings on the selected model are useful only when considered alongside answer quality and routing overhead.</p>
+<p>This cookbook compares specialized decision models like Jev with lightweight language models from OpenAI and Anthropic as routers. It asks the following questions:</p>
+<ul>
+<li>Which router model makes the most accurate routing choices?</li>
+<li>How does the routing objective affect those selections?</li>
+<li>Which direction do different router models bias?</li>
+<li>How do you pick the best router model for your use case?</li>
+<li>How does cost play a factor in routing?</li>
+</ul>
+<p>The walkthrough covers dataset preparation through evaluation. We use Jev, OpenAI Decisions, and Claude Haiku 5.5 to choose among three anonymous solving models. If you want to skip to my results, <a href="#results">click here</a>.</p>
 <nav aria-label="Cookbook outline"><p><strong>What we will do</strong></p><ol>
 <li><a href="#setup">Set up the notebook and Phoenix.</a></li>
 <li><a href="#dataset">Prepare paired benchmark records and fixed splits.</a></li>
@@ -147,7 +155,7 @@
 .venv/bin/python -m pip install -e &quot;.[notebook]&quot;
 .venv/bin/python -m ipykernel install --user --name router-bench --display-name &quot;Router Bench&quot;
 .venv/bin/python -m jupyterlab notebooks/run_routing_experiments.ipynb</code></pre>
-<p>Select the <strong>Router Bench</strong> kernel. From the repository root, copy the example environment file to create your local configuration:</p>
+<p>Select the <strong>Router Bench</strong> kernel. From the repository root, create your local configuration:</p>
 <pre><code class="language-bash">cp .env.example .env</code></pre>
 <p>Open <code>.env</code> and fill in the API keys for the routers you plan to run: <code>TYPESAFE_API_KEY</code> for Jev, <code>OPENAI_API_KEY</code> for Decisions, and <code>ANTHROPIC_API_KEY</code> for Haiku.</p>
 <p>Run the notebook’s import cell each session:</p>
@@ -168,13 +176,12 @@ phoenix_session = px.active_session() or px.launch_app(host=&quot;127.0.0.1&quot
 <p>Run the dataset preparation cell on first use, or when the required splits are missing:</p>
 <pre><code class="language-python">upload_dataset()</code></pre>
 <p>The active source is <code>data/intern_flash_gpt5/</code>, imported from <a href="https://github.com/ynulihao/LLMRouterBench">LLMRouterBench</a>. Each question has published records for all three solving models, including scores and execution costs. We upload those records as private reference outputs and use the question text from the Gemini 2.5 Flash record as the shared routing input.</p>
-<p><strong>Engineering decision: replay published outcomes.</strong> Calling a selected solver after every routing decision would repeat solver inference for every experiment. Instead, we make live routing calls and look up the selected solver’s archived outcome afterward. This keeps the solving outcomes fixed while we compare routers and prompts. It also means the evaluation measures selection among existing outcomes, without testing fresh solver responses.</p>
+<p><strong>Engineering decision: Save published outcomes.</strong> Calling a selected solver after every routing decision would repeat solver inference for every experiment. Instead, we make live routing calls and look up the selected solver’s archived outcome afterward. This keeps solving outcomes fixed while we compare routers and prompts. The evaluation measures selection among existing outcomes; it does not test fresh solver responses.</p>
 <p>The dataset has a fixed <strong>30-question development split</strong>, with three questions per benchmark, and a <strong>12,416-question test split</strong>. Saved question identifiers preserve the original development membership. We use development for checking the workflow; there is no separate router training or calibration stage.</p>
-<div class="tablewrap"><table><caption>Benchmark composition reported in the README for the test partition.</caption><thead><tr><th scope="col">Category</th><th scope="col">Benchmark</th><th scope="col">Prompts</th></tr></thead><tbody><tr><td>Mathematics</td><td>AIME</td><td>60</td></tr><tr><td>Mathematics</td><td>LiveMathBench</td><td>121</td></tr><tr><td>Coding</td><td>LiveCodeBench</td><td>1,055</td></tr><tr><td>Coding</td><td>SWE-Bench</td><td>500</td></tr><tr><td>Knowledge</td><td>GPQA</td><td>198</td></tr><tr><td>Knowledge</td><td>Humanity&#x27;s Last Exam (HLE)</td><td>2,158</td></tr><tr><td>Knowledge</td><td>MMLU-Pro</td><td>3,000</td></tr><tr><td>Knowledge</td><td>SimpleQA</td><td>4,326</td></tr><tr><td>Instruction following</td><td>ArenaHard</td><td>750</td></tr><tr><td>Tool use</td><td>τ²-Bench</td><td>278</td></tr></tbody></table></div>
-<p><strong>Engineering decision: preserve source data and flag unreliable usage.</strong> Ten source questions contain negative GPT-5 completion-token counts and potentially unreliable zero costs. The local reader excludes those questions across all three candidates by default, preserving paired comparisons. Evaluators also retain invalid-usage metadata so cost summaries can exclude flagged questions consistently. Original values are never repaired or repriced. The source additionally contains a question-text mismatch at HLE index 1494; see the <a href="../data/README.md">data notes</a> for provenance and caveats.</p>
+<div class="tablewrap"><table><caption>Test partition composition</caption><thead><tr><th scope="col">Category</th><th scope="col">Benchmark</th><th scope="col">Prompts</th></tr></thead><tbody><tr><td>Mathematics</td><td>AIME</td><td>60</td></tr><tr><td>Mathematics</td><td>LiveMathBench</td><td>121</td></tr><tr><td>Coding</td><td>LiveCodeBench</td><td>1,055</td></tr><tr><td>Coding</td><td>SWE-Bench</td><td>500</td></tr><tr><td>Knowledge</td><td>GPQA</td><td>198</td></tr><tr><td>Knowledge</td><td>Humanity&#x27;s Last Exam (HLE)</td><td>2,158</td></tr><tr><td>Knowledge</td><td>MMLU-Pro</td><td>3,000</td></tr><tr><td>Knowledge</td><td>SimpleQA</td><td>4,326</td></tr><tr><td>Instruction following</td><td>ArenaHard</td><td>750</td></tr><tr><td>Tool use</td><td>τ²-Bench</td><td>278</td></tr></tbody></table></div>
 <h2 id="contract"><span class="num">03</span>Keep the routing contract consistent</h2>
 <p>A router should choose from the capabilities and prices provided in the experiment. Model names can introduce prior beliefs that are outdated or inconsistent across decision models, so every router receives the same three neutral labels and the same public-source descriptions.</p>
-<p>The fixed mapping below is for readers and evaluation code. It is kept outside router-visible inputs in <a href="../routing/candidates.py"><code>routing/candidates.py</code></a>:</p>
+<p>The fixed mapping below is for readers and evaluation code. It is kept outside router-visible inputs in <a href="../routing/candidates.py"><code>routing/candidates.py</code></a>.</p>
 <div class="tablewrap"><table><caption>Private candidate mapping used throughout this benchmark.</caption><thead><tr><th scope="col">Label</th><th scope="col">Solving model</th></tr></thead><tbody>
 <tr><td>Candidate A</td><td>Intern-S1 (<code>intern-s1</code>)</td></tr>
 <tr><td>Candidate B</td><td>Gemini 2.5 Flash (<code>gemini-2.5-flash</code>)</td></tr>
@@ -185,23 +192,23 @@ phoenix_session = px.active_session() or px.launch_app(host=&quot;127.0.0.1&quot
 Candidate B: General-purpose language, coding, and reasoning capabilities; $0.30 / $2.50.
 Candidate C: Coding and complex reasoning at medium effort; $1.25 / $10.00.</code></pre>
 <p>These descriptions are grounded in the <a href="https://huggingface.co/internlm/Intern-S1">Intern-S1 model card</a>, <a href="https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash">Gemini documentation</a>, and <a href="https://developers.openai.com/api/docs/models/gpt-5">GPT-5 documentation</a>. We do not derive them from this project’s test results. The rates are historical inputs to the routing decision; downstream cost evaluation uses each original published execution cost.</p>
-<p><strong>Engineering decision: separate routing inputs from evaluation references.</strong> In a real-world system, the router would receive an incoming user prompt without additional labels identifying the type of task. We reproduce that setting by giving the router only the question prompt, shared instructions, and anonymous candidate profiles. It must infer the task and its difficulty from the request itself. Benchmark names, task categories, solver identities, archived responses, scores, and reference metadata stay outside the routing request; exposing them would give the router information it would not have when handling a real prompt. All approaches see the candidates in the same order. GPT-5 Medium serves as the top tier within this benchmark’s available pool.</p>
+<p><strong>Engineering decision: separate routing inputs from evaluation references.</strong> In a real-world system, a router receives an incoming user prompt without additional labels identifying the task type. We reproduce that setting by giving the router only the question prompt, shared instructions, and anonymous candidate profiles. It must infer the task and its difficulty from the request itself. Benchmark names, task categories, solver identities, archived responses, scores, and reference metadata stay outside the routing request; exposing them would give the router information it would not have when handling a real prompt. All approaches see candidates in the same order. GPT-5 Medium serves as the top tier within this benchmark’s available pool.</p>
 <h2 id="routers"><span class="num">04</span>Choose routers and a system prompt</h2>
 <p>In the notebook’s <strong>Choose routers</strong> cell, select all three approaches or a subset:</p>
-<pre><code class="language-python">selected_routers = [&quot;jev&quot;, &quot;openai-decisions&quot;, &quot;haiku&quot;] # Update this list to test a subset of models
+<pre><code class="language-python">selected_routers = [&quot;jev&quot;, &quot;openai-decisions&quot;, &quot;haiku&quot;]  # Update this list to test a subset of models
 
 router_settings = {
     &quot;jev&quot;: {&quot;provider&quot;: &quot;jev&quot;, &quot;model&quot;: &quot;jev-1.13.0&quot;},
     &quot;openai-decisions&quot;: {&quot;provider&quot;: &quot;openai_decisions&quot;, &quot;model&quot;: &quot;gpt-6-luna&quot;},
     &quot;haiku&quot;: {&quot;provider&quot;: &quot;anthropic&quot;, &quot;model&quot;: &quot;claude-haiku-5-5&quot;, &quot;parameters&quot;: {&quot;max_tokens&quot;: 4096}},
 }</code></pre>
-<p class="note"><strong>Note:</strong> A shared interface adapts the same instructions and candidates to each provider’s request format and validates returned labels, reporting invalid decisions as failures rather than defaulting to a candidate.</p>
-<p>We use different system prompts to evaluate how the routing models interpret and generalize across slightly different sets of routing instructions. By varying the emphasis on cost and accuracy while keeping the questions and candidate profiles fixed, we can observe how each model translates those instructions into candidate selections.</p>
-<p>Next, select a system prompt variant:</p>
-<pre><code class="language-python">system_prompt_variant = &quot;default&quot; # Set to &quot;balanced&quot;, &quot;accuracy-first&quot;, or &quot;cost-first&quot; to adjust behavior
+<p class="note"><strong>Note:</strong> A shared interface adapts the same instructions and candidates to each provider’s request format and validates returned labels. Invalid decisions are reported as failures rather than defaulting to a candidate.</p>
+<p>We use different system prompts to evaluate how the routing models interpret and generalize across slightly different routing instructions. Varying the emphasis on cost and accuracy while keeping the questions and candidate profiles fixed lets us observe how each model translates those instructions into candidate selections.</p>
+<p>Select a system-prompt variant:</p>
+<pre><code class="language-python">system_prompt_variant = &quot;default&quot;  # Set to &quot;balanced&quot;, &quot;accuracy-first&quot;, or &quot;cost-first&quot;
 
-custom_system_prompt = None  # Set to your own instruction string to override the default prompt.</code></pre>
-<p>The default asks the router to assess the request against the supplied capabilities and costs, then select the candidate that best fits. We replace that objective sentence for the other three variants, leaving the candidate descriptions and response contract unchanged:</p>
+custom_system_prompt = None  # Set your own instruction string to override the default prompt.</code></pre>
+<p>The default asks the router to assess the request against the supplied capabilities and costs, then select the candidate that best fits. The other variants replace only that objective sentence; candidate descriptions and the response contract stay unchanged.</p>
 <ul>
 <li><strong>Default:</strong> “Select the candidate that best fits the request.”</li>
 <li><strong>Balanced:</strong> “Balance cost and accuracy. Select the least expensive candidate that you expect to provide an accurate answer to the request.”</li>
@@ -224,12 +231,11 @@ routers = [
 <h2 id="run"><span class="num">05</span>Run the routing experiments</h2>
 <p>Start with the notebook’s development settings:</p>
 <pre><code class="language-python">split = &quot;development&quot;
-benchmarks_filter = None  # None or a subset such as [&quot;aime&quot;, &quot;gpqa&quot;].</code></pre>
+benchmarks_filter = None  # None or a subset such as [&quot;aime&quot;, &quot;gpqa&quot;]</code></pre>
 <p>Set <code>benchmarks_filter</code> to a list such as <code>["aime", "gpqa"]</code> for a narrower check. Filters remain inside the chosen development or test partition. To evaluate the full test set, change <code>split</code> to <code>"test"</code> and keep <code>benchmarks_filter = None</code>.</p>
-<p>Now run the experiment cell. <strong>This makes paid routing requests.</strong> No solving model is called.</p>
+<p>Run the experiment cell. <strong>This makes paid routing requests.</strong> No solving model is called.</p>
 <pre><code class="language-python">results = await run_routing(routers=routers, split=split, benchmarks=benchmarks_filter)</code></pre>
-<p><strong>Engineering decision: share one dataset version.</strong> The runner loads the selected dataset once and passes that same version to each selected router. It records the dataset version, candidate mapping, full system prompt, prompt hash, router configuration, and concurrency in experiment metadata. When comparing separate runs for different prompt variants, verify that their saved dataset version IDs match.</p>
-<p>Routers run sequentially, with up to 16 concurrent questions within each experiment. This provides bounded throughput while keeping the concurrency setting consistent across approaches. Each run creates a new Phoenix experiment and a unique JSONL log in <code>routing/results/</code>; rerunning does not resume an earlier experiment.</p>
+<p>Routers run sequentially, with up to 16 concurrent questions within each experiment. Each run creates a new Phoenix experiment and a unique JSONL log in <code>routing/results/</code>; rerunning does not resume an earlier experiment.</p>
 <p>For each of the four prompt variants, reinitialize the routers, run the selected split, and evaluate the returned experiments before moving to the next variant. The notebook’s <code>results</code> variable contains only the most recent run. Keep the printed experiment IDs and log paths for comparisons across variants.</p>
 <h2 id="evaluate"><span class="num">06</span>Evaluate saved decisions</h2>
 <p>Run the notebook’s evaluator cell after routing finishes:</p>
@@ -251,26 +257,27 @@ finally:
     await evaluation_client._client.aclose()</code></pre>
 <p>The evaluator resolves each anonymous decision to its private model mapping and reads that model’s published record for the same question. No new solver inference or model-based grading is needed. It attaches these metrics to the saved experiment:</p>
 <ul>
-<li><code>downstream_score</code> and <code>downstream_cost</code>: the selected solver’s published score and original execution cost, with token counts recorded separately.</li>
+<li><code>downstream_score</code> and <code>downstream_cost</code>: the selected solver’s published score and original execution cost; token counts are recorded separately.</li>
 <li><code>router_latency_seconds</code> and router token metrics: measured routing time and recorded API usage.</li>
 <li><code>routing_cost</code>: an estimate from recorded routing usage and the evaluator’s fixed historical pricing snapshot.</li>
 <li><code>total_system_cost</code>: routing cost plus the selected solver’s published execution cost.</li>
 <li><code>gap</code>: the best published score among the three available candidates minus the selected candidate’s score. Zero includes ties.</li>
 </ul>
-<p><strong>Engineering decision: separate selection quality from measurement errors.</strong> Failed routing tasks are skipped by evaluators and reported. Missing or malformed metric inputs produce errors or missing values rather than invented zeros. Inspect task and evaluation errors before comparing summaries. Routing cost estimates cover recorded usage and may omit charges for failed or retried requests that did not report usage.</p>
+<p><strong>Engineering decision: separate selection quality from measurement errors.</strong> Failed routing tasks are skipped by evaluators and reported. Missing or malformed metric inputs produce errors or missing values rather than invented zeros. Inspect task and evaluation errors before comparing summaries. Routing-cost estimates cover recorded usage and may omit charges for failed or retried requests that did not report usage.</p>
 <p>Open <a href="http://127.0.0.1:6006">local Phoenix</a>, navigate to Datasets and Experiments, and select the printed experiment IDs. Inspect individual choices alongside downstream scores, costs, and errors. This helps distinguish a genuine low-cost selection pattern from incomplete evaluation data.</p>
 <h2 id="summarize"><span class="num">07</span>Summarize results</h2>
 <p>Run the notebook’s <strong>Experiment summary</strong> cell, followed by <strong>Results by benchmark split</strong>. The first produces an overall view of the most recent experiments; the second groups their saved metrics by benchmark.</p>
 <p>The notebook and README use the same accuracy aggregation: compute the mean published downstream score within each benchmark, then average those benchmark means with equal weight. Each of the ten benchmarks contributes equally in a full run, so larger datasets such as SimpleQA cannot skew the overall score simply by having more questions. When selecting a subset, each selected benchmark receives equal weight.</p>
-<p>Total cost per 1,000 prompts is the mean eligible per-question routing-plus-solver cost multiplied by 1,000.</p>
-<p>The per-benchmark table’s <strong>Total Cost (USD)</strong> is a sum for that group, without scaling to 1,000 prompts.</p>
-<h2 id="results"><span class="num">08</span>Results</h2>
+<p><strong>Total cost per 1,000 prompts:</strong> mean eligible per-question routing-plus-solver cost multiplied by 1,000.</p>
+<p><strong>Per-benchmark Total Cost (USD):</strong> sum for that group, without scaling to 1,000 prompts.</p>
+<h2 id="results"><span class="num">08</span>Results and interpretation</h2>
+<p>Here are my results after running the above benchmark procedure.</p>
 <h3>Fixed-model baselines</h3>
-<p>Always selecting one solver provides a reference for judging whether routing adds useful selection behavior:</p>
-<div class="tablewrap"><table><thead><tr><th scope="col">Model</th><th scope="col">Mean Benchmark Accuracy</th><th scope="col">Mean Benchmark Cost /1000 prompts</th></tr></thead><tbody><tr><td>Intern-S1</td><td>44.93%</td><td>$3.79</td></tr><tr><td>Gemini 2.5 Flash</td><td>49.10%</td><td>$8.78</td></tr><tr><td>GPT-5 Medium</td><td>65.76%</td><td>$33.12</td></tr></tbody></table></div>
-<p>The oracle selects the highest-scoring candidate separately for every question with knowledge of all published outcomes. Its <strong>73.92%</strong> score is an upper bound for this candidate pool, rather than an executable routing policy. It exceeds the strongest fixed baseline because different candidates can succeed on different questions.</p>
+<p>Here are the base accuracy results for each model, if the router had selected that model every time. Naturally, the higher the accuracy, the higher the cost.</p>
+<div class="tablewrap"><table><thead><tr><th scope="col">Model</th><th scope="col">Mean benchmark accuracy</th><th scope="col">Mean benchmark cost / 1,000 prompts</th></tr></thead><tbody><tr><td>Intern-S1</td><td>44.93%</td><td>$3.79</td></tr><tr><td>Gemini 2.5 Flash</td><td>49.10%</td><td>$8.78</td></tr><tr><td>GPT-5 Medium</td><td>65.76%</td><td>$33.12</td></tr></tbody></table></div>
+<p>The oracle picks the model that scored highest on each question, using results from all the models. That makes <strong>73.92%</strong> the highest score you can get using these models (not 100%).</p>
 <h3>Compare all twelve model-prompt configurations</h3>
-<div class="tablewrap"><table><thead><tr><th scope="col">Router</th><th scope="col">Prompt</th><th scope="col">Mean benchmark score</th><th scope="col">Total cost / 1,000 prompts</th></tr></thead><tbody><tr><td>Oracle</td><td>--</td><td>73.92%</td><td>--</td></tr><tr><td>Haiku</td><td>Accuracy-first</td><td>56.15%</td><td>$19.45</td></tr><tr><td>Jev</td><td>Accuracy-first</td><td>53.30%</td><td>$15.94</td></tr><tr><td>Haiku</td><td>Default</td><td>51.94%</td><td>$15.95</td></tr><tr><td>Haiku</td><td>Balanced</td><td>51.14%</td><td>$15.45</td></tr><tr><td>Jev</td><td>Default</td><td>49.74%</td><td>$11.78</td></tr><tr><td>Haiku</td><td>Cost-first</td><td>49.33%</td><td>$10.97</td></tr><tr><td>Jev</td><td>Cost-first</td><td>47.69%</td><td>$9.28</td></tr><tr><td>Jev</td><td>Balanced</td><td>46.94%</td><td>$6.27</td></tr><tr><td>OpenAI Decisions</td><td>Default</td><td>46.67%</td><td>$4.26</td></tr><tr><td>OpenAI Decisions</td><td>Accuracy-first</td><td>45.04%</td><td>$4.13</td></tr><tr><td>OpenAI Decisions</td><td>Cost-first</td><td>44.93%</td><td>$3.92</td></tr><tr><td>OpenAI Decisions</td><td>Balanced</td><td>44.90%</td><td>$3.93</td></tr></tbody></table></div><figure>
+<div class="tablewrap"><table><thead><tr><th scope="col">Router</th><th scope="col">Prompt</th><th scope="col">Mean benchmark score</th><th scope="col">Total cost / 1,000 prompts</th></tr></thead><tbody><tr><td>Oracle</td><td>—</td><td>73.92%</td><td>—</td></tr><tr><td>Haiku</td><td>Accuracy-first</td><td>56.15%</td><td>$19.45</td></tr><tr><td>Jev</td><td>Accuracy-first</td><td>53.30%</td><td>$15.94</td></tr><tr><td>Haiku</td><td>Default</td><td>51.94%</td><td>$15.95</td></tr><tr><td>Haiku</td><td>Balanced</td><td>51.14%</td><td>$15.45</td></tr><tr><td>Jev</td><td>Default</td><td>49.74%</td><td>$11.78</td></tr><tr><td>Haiku</td><td>Cost-first</td><td>49.33%</td><td>$10.97</td></tr><tr><td>Jev</td><td>Cost-first</td><td>47.69%</td><td>$9.28</td></tr><tr><td>Jev</td><td>Balanced</td><td>46.94%</td><td>$6.27</td></tr><tr><td>OpenAI Decisions</td><td>Default</td><td>46.67%</td><td>$4.26</td></tr><tr><td>OpenAI Decisions</td><td>Accuracy-first</td><td>45.04%</td><td>$4.13</td></tr><tr><td>OpenAI Decisions</td><td>Cost-first</td><td>44.93%</td><td>$3.92</td></tr><tr><td>OpenAI Decisions</td><td>Balanced</td><td>44.90%</td><td>$3.93</td></tr></tbody></table></div><figure>
   <svg viewBox="0 0 860 470" role="img" aria-labelledby="c1t c1d" id="chart-cost-accuracy">
     <title id="c1t">Mean benchmark score versus total system cost for every router configuration</title>
     <desc id="c1d">A scatter plot. The oracle ceiling sits at 73.92 percent. GPT-5 Medium as a fixed baseline reaches 65.76 percent at $33.12 per thousand prompts. Haiku with the accuracy-first prompt reaches 56.15 percent at $19.45. Jev configurations span 46.94 to 53.30 percent between $6.27 and $15.94. All four OpenAI Decisions configurations cluster between 44.90 and 46.67 percent at under $4.30.</desc>
@@ -325,7 +332,7 @@ finally:
       <polygon points="157.9,374.1 151.9,385.1 163.9,385.1" fill="#fca5a5" fill-opacity=".85" stroke="#0b1220" stroke-width="1.5"/>
       <polygon points="153.4,375.4 147.4,386.4 159.4,386.4" fill="#fca5a5" fill-opacity=".85" stroke="#0b1220" stroke-width="1.5"/>
       <circle cx="483.9" cy="251.2" r="13" fill="none" stroke="#c4b5fd" stroke-width="1.2" stroke-dasharray="3 3"/>
-      <text x="502.9" y="255.2" class="ann" fill="#c4b5fd">Haiku, accuracy-first &#8212; best router tested</text>
+      <text x="502.9" y="255.2" class="ann" fill="#c4b5fd">Haiku, accuracy-first &#8212; most accurate router</text>
       <rect x="102.5" y="72.5" width="11" height="11" fill="none" stroke="#94a3b8" stroke-width="2"/>
       <text x="124" y="78" class="ann" fill="var(--ink-2)" dy="4">Fixed baseline (always this model)</text>
       <circle cx="108" cy="100" r="6" fill="#5eead4" fill-opacity=".85"/>
@@ -341,7 +348,12 @@ finally:
   </svg>
 </figure>
 <p>Haiku with the accuracy-first prompt achieves the highest routed score, <strong>56.15%</strong>, at <strong>$19.45</strong> per 1,000 prompts. Relative to always using GPT-5 Medium, that is about 41% lower cost with a 9.61 percentage-point lower score. Every tested routing configuration scores below that fixed GPT-5 baseline and costs less.</p>
-<p>Against Intern-S1, routing is not uniformly an accuracy improvement. Decisions with the balanced prompt scores 44.90%, slightly below the 44.93% fixed baseline; its cost-first configuration matches the baseline score while adding routing overhead. Against the mid-tier baseline, several configurations score lower despite higher total cost. These references are essential when interpreting a router’s score in isolation.</p>
+<p>Something interesting here is that routing isn’t automatically better than always using one model.</p>
+<ul>
+<li><strong>Intern-S1 baseline:</strong> Always using Intern-S1 scores 44.93%. OpenAI Decisions with the balanced prompt scores 44.90%, slightly lower. Its cost-first prompt matches Intern-S1’s score but costs more per 1,000 prompts ($3.92 vs. $3.79) because routing adds overhead.</li>
+<li><strong>Gemini baseline:</strong> Gemini 2.5 Flash scores 49.10% at $8.78 per 1,000 prompts. Jev with the cost-first prompt scores 47.69% and costs $9.28—lower accuracy at higher cost.</li>
+</ul>
+<p>These comparisons show why routers should be measured against fixed-model baselines, not just against other routing configurations.</p>
 <h3>Candidate selection patterns</h3>
 <figure>
   <svg viewBox="0 0 860 406" role="img" aria-labelledby="c2t c2d" id="chart-decisions">
@@ -463,18 +475,18 @@ finally:
   </svg>
   <figcaption>Measured on the routing call only.</figcaption>
 </figure>
-<p>Jev has the lowest measured mean routing latency at 0.173 seconds, followed by Decisions at 0.312 seconds and Haiku at 1.911 seconds. These timings describe routing calls under the experiment’s concurrency conditions. They do not include solver latency or establish end-to-end application response times.</p>
+<p>Jev has the lowest measured mean routing latency, followed by Decisions and Haiku. These timings describe routing calls under the experiment’s concurrency conditions. They do not include solver latency or establish end-to-end application response times.</p>
 <h2 id="takeaways">Takeaways</h2>
 <ul>
-<li><strong>Tune your system prompt.</strong> Small changes to routing instructions can meaningfully change model selections, accuracy, and cost. Switching Jev from balanced to accuracy-first prompting increased its score by 6.36 percentage points while more than doubling total cost. Tuning the prompt is therefore an important part of aligning routing behavior with your cost and accuracy priorities.</li>
-<li><strong>Cheaper routing cost doesn't always lead to savings.</strong> OpenAI Decisions API had higher routing costs than Jev, but its stronger preference for cheaper solving models produced lower total inference costs across all four matched prompt configurations. The selected solver’s cost outweighed the savings from Jev’s cheaper routing calls.</li>
-<li><strong>Each router shows a distinct strength.</strong> An interesting pattern emerges across the three approaches: Haiku achieves the highest routed accuracy, Jev makes routing decisions fastest on average, and Decisions produces the lowest total costs. Each leads on a different dimension of this benchmark.</li>
+<li><strong>There’s no universal “best” router.</strong> I expected clear outliers and configurations that were both more expensive and less accurate than alternatives. Instead, accuracy rose roughly linearly with total cost across the configurations tested. Choose a router and prompt configuration based on how your use case weighs cost, accuracy, and latency.</li>
+<li><strong>Tune your system prompt.</strong> Small changes to routing instructions can meaningfully change model selections, accuracy, and cost. Switching Jev from balanced to accuracy-first prompting increased its score by 6.36 percentage points while more than doubling total cost. Prompt tuning is an important part of aligning routing behavior with cost and accuracy priorities.</li>
+<li><strong>Cheaper routing cost does not always lead to savings.</strong> OpenAI Decisions API had higher routing costs than Jev, but its stronger preference for cheaper solving models produced lower total inference costs across all four matched prompt configurations. The selected solver’s cost outweighed the savings from Jev’s cheaper routing calls.</li>
+<li><strong>Each router shows a distinct strength.</strong> Haiku achieves the highest routed accuracy, Jev makes routing decisions fastest on average, and Decisions produces the lowest total costs. Each leads on a different dimension of this benchmark.</li>
 </ul>
 <h2 id="limitations">Limitations and interpretation</h2>
 <ul>
-<li>The real-world motivation is allocating inference effort across requests. This evaluation isolates one part of that problem: choosing among three candidates from question text and anonymous capability profiles. It does not measure live solver behavior, end-to-end agent completion, or production workload performance.</li>
-<li>The candidate pool is limited to models with outcomes in the source dataset. A different pool, pricing schedule, or workload could change the ranking. Published scores and execution costs remain historical. Router costs use fixed pricing snapshots, and routing timings reflect the measured concurrency and service conditions.</li>
-<li>Four prompt variants demonstrate sensitivity to instructions without establishing an optimal prompt. The reported point estimates do not establish statistical significance, and the development split is a small workflow check. Source-data anomalies, failed tasks, missing metrics, and aggregation choices must remain visible when interpreting a run.</li>
+<li>Given the limited model options, this study provides a comparative evaluation of routers within the selected candidate pool. Its results should not be interpreted as a true indication of router performance in real-world systems.</li>
+<li>Four prompt variants demonstrate sensitivity to instructions without establishing an optimal prompt.</li>
 </ul>
 <p>Within those limits, the evaluation gives us a reproducible way to compare routing approaches: hold questions and candidate information constant, vary the router and its objective, then pair each saved decision with a published outcome. The results show how those choices change the cost–quality tradeoff in this benchmark.</p>
 <hr>
