@@ -266,6 +266,41 @@ class RoutingNotebookTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(list(Path(self.temp.name).glob('results/*.jsonl'))), 1)
         self.async_client._client.aclose.assert_awaited_once()
 
+    async def test_summary_weights_benchmarks_equally_and_preserves_missing_metrics(self):
+        from math import isnan
+
+        def run(benchmark, score, *, failed=False):
+            return {
+                'reference_output': {'flash_dataset_id': benchmark},
+                'error': 'routing failed' if failed else None,
+                'annotations': [
+                    {'name': 'downstream_score', 'score': score},
+                    {'name': 'total_system_cost', 'score': 0.01},
+                ],
+            }
+
+        index = next(i for i, source in enumerate(self.cells) if 'summary_client =' in source)
+        self.state['make_phoenix_client'] = pipeline.make_phoenix_client
+        for extra, expected in (([], 0.5), ([run('small', None)], None),
+                                ([run('failed-benchmark', 1, failed=True)], None)):
+            with self.subTest(extra=extra):
+                runs = [run('small', 1)] + [run('large', 0) for _ in range(9)] + extra
+                self.async_client.experiments.get = AsyncMock(return_value={'metadata': {
+                    'router_config': {'model': 'jev-1.13.0'},
+                    'system_prompt_variant': 'default',
+                }})
+                self.async_client._client.get = AsyncMock(return_value=Mock(
+                    json=Mock(return_value=runs)))
+                self.state['results'] = {'jev': {'experiment_id': 'saved-experiment'}}
+                with patch('IPython.display.display'):
+                    await self.execute(index)
+                row = self.state['experiment_summary'].iloc[0]
+                if expected is None:
+                    self.assertTrue(isnan(row['Mean Benchmark Accuracy']))
+                else:
+                    self.assertAlmostEqual(row['Mean Benchmark Accuracy'], expected)
+                self.assertAlmostEqual(row['Total Cost per 1000 Prompts'], 10)
+
     async def test_notebook_format_and_launch_directories(self):
         self.assertEqual((self.notebook['nbformat'], self.notebook['nbformat_minor']), (4, 5))
         for cell in self.notebook['cells']:
